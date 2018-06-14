@@ -47,30 +47,13 @@ MODULE_LICENSE("Dual BSD/GPL");
 uint32_t gDbgLevel = WIFI_LOG_DBG;
 
 #define WIFI_DBG_FUNC(fmt, arg...)	\
-	do { \
-		if (gDbgLevel >= WIFI_LOG_DBG) \
-			pr_info(PFX "%s[D]: " fmt, __func__, ##arg); \
-	} while (0)
+	do { if (gDbgLevel >= WIFI_LOG_DBG) pr_debug(PFX "%s: " fmt, __func__, ##arg); } while (0)
 #define WIFI_INFO_FUNC(fmt, arg...)	\
-	do { \
-		if (gDbgLevel >= WIFI_LOG_INFO) \
-			pr_info(PFX "%s[I]: " fmt, __func__, ##arg); \
-	} while (0)
-#define WIFI_INFO_FUNC_LIMITED(fmt, arg...)	\
-	do { \
-		if (gDbgLevel >= WIFI_LOG_INFO) \
-			pr_info_ratelimited(PFX "%s[L]: " fmt, __func__, ##arg); \
-	} while (0)
+	do { if (gDbgLevel >= WIFI_LOG_INFO) pr_info(PFX "%s: " fmt, __func__, ##arg); } while (0)
 #define WIFI_WARN_FUNC(fmt, arg...)	\
-	do { \
-		if (gDbgLevel >= WIFI_LOG_WARN) \
-			pr_info(PFX "%s[W]: " fmt, __func__, ##arg); \
-	} while (0)
+	do { if (gDbgLevel >= WIFI_LOG_WARN) pr_warn(PFX "%s: " fmt, __func__, ##arg); } while (0)
 #define WIFI_ERR_FUNC(fmt, arg...)	\
-	do { \
-		if (gDbgLevel >= WIFI_LOG_ERR) \
-			pr_info(PFX "%s[E]: " fmt, __func__, ##arg); \
-	} while (0)
+	do { if (gDbgLevel >= WIFI_LOG_ERR) pr_err(PFX "%s: " fmt, __func__, ##arg); } while (0)
 
 #define VERSION "2.0"
 
@@ -91,10 +74,12 @@ enum {
 	WLAN_MODE_HALT,
 	WLAN_MODE_AP,
 	WLAN_MODE_STA_P2P,
+	WLAN_MODE_STA_AP_P2P,
 	WLAN_MODE_MAX
 };
 static int32_t wlan_mode = WLAN_MODE_HALT;
 static int32_t powered;
+static int32_t isconcurrent;
 static char *ifname = WLAN_IFACE_NAME;
 
 /*******************************************************************
@@ -122,25 +107,6 @@ VOID register_set_p2p_mode_handler(set_p2p_mode handler)
 	pf_set_p2p_mode = handler;
 }
 EXPORT_SYMBOL(register_set_p2p_mode_handler);
-
-enum ENUM_WLAN_DRV_BUF_TYPE_T {
-	BUF_TYPE_NVRAM,
-	BUF_TYPE_DRV_CFG,
-	BUF_TYPE_FW_CFG,
-	BUF_TYPE_NUM
-};
-
-typedef uint8_t(*file_buf_handler)(void *ctx, const char __user *buf, uint16_t length);
-static file_buf_handler buf_handler[BUF_TYPE_NUM];
-static void *buf_handler_ctx[BUF_TYPE_NUM];
-void register_file_buf_handler(file_buf_handler handler, void *handler_ctx, uint8_t ucType)
-{
-	if (ucType < BUF_TYPE_NUM) {
-		buf_handler[ucType] = handler;
-		buf_handler_ctx[ucType] = handler_ctx;
-	}
-}
-EXPORT_SYMBOL(register_file_buf_handler);
 
 /*******************************************************************
  *  WHOLE CHIP RESET PROCEDURE:
@@ -237,7 +203,7 @@ int32_t wifi_reset_end(enum ENUM_RESET_STATUS status)
 				p2pmode.u4Enable = 1;
 				p2pmode.u4Mode = 0;
 				if (pf_set_p2p_mode(netdev, p2pmode) != 0) {
-					WIFI_ERR_FUNC("Set wlan mode fail\n");
+					WIFI_ERR_FUNC("Set wlan mode 0 fail\n");
 				} else {
 					WIFI_WARN_FUNC("Set wlan mode %d\n", WLAN_MODE_STA_P2P);
 					ret = 0;
@@ -246,9 +212,18 @@ int32_t wifi_reset_end(enum ENUM_RESET_STATUS status)
 				p2pmode.u4Enable = 1;
 				p2pmode.u4Mode = 1;
 				if (pf_set_p2p_mode(netdev, p2pmode) != 0) {
-					WIFI_ERR_FUNC("Set wlan mode fail\n");
+					WIFI_ERR_FUNC("Set wlan mode 1 fail\n");
 				} else {
 					WIFI_WARN_FUNC("Set wlan mode %d\n", WLAN_MODE_AP);
+					ret = 0;
+				}
+			} else if (wlan_mode == WLAN_MODE_STA_AP_P2P) {
+				p2pmode.u4Enable = 1;
+				p2pmode.u4Mode = 3;
+				if (pf_set_p2p_mode(netdev, p2pmode) != 0) {
+					WIFI_ERR_FUNC("Set wlan mode 3 fail\n");
+				} else {
+					WIFI_WARN_FUNC("Set wlan mode %d\n", WLAN_MODE_STA_AP_P2P);
 					ret = 0;
 				}
 			}
@@ -282,8 +257,8 @@ static int WIFI_close(struct inode *inode, struct file *file)
 
 ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
-	INT32 retval = -EIO;
-	INT8 local[20] = { 0 };
+	int32_t retval = -EIO;
+	char local[12] = { 0 };
 	struct net_device *netdev = NULL;
 	struct PARAM_CUSTOM_P2P_SET_STRUCT p2pmode;
 	int32_t wait_cnt = 0;
@@ -297,7 +272,7 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 
 	copy_size = min(sizeof(local) - 1, count);
 	if (copy_from_user(local, buf, copy_size) == 0) {
-		WIFI_INFO_FUNC("WIFI_write %s, length %zu\n", local, count);
+		WIFI_INFO_FUNC("WIFI_write %s\n", local);
 
 		if (local[0] == '0') {
 			if (powered == 0) {
@@ -349,46 +324,6 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 				WIFI_INFO_FUNC("WMT turn on WIFI success!\n");
 				wlan_mode = WLAN_MODE_HALT;
 			}
-		} else if (!strncmp(local, "WR-BUF:", 7)) {
-			file_buf_handler handler = NULL;
-			VOID *ctx = NULL;
-
-			if (!strncmp(&local[7], "NVRAM", 5)) {
-				copy_size = count - 12;
-				buf += 12;
-				handler = buf_handler[BUF_TYPE_NVRAM];
-				ctx = buf_handler_ctx[BUF_TYPE_NVRAM];
-			} else if (!strncmp(&local[7], "DRVCFG", 6)) {
-				copy_size = count - 13;
-				buf += 13;
-				handler = buf_handler[BUF_TYPE_DRV_CFG];
-				ctx = buf_handler_ctx[BUF_TYPE_DRV_CFG];
-			} else if (!strncmp(&local[7], "FWCFG", 5)) {
-				copy_size = count - 12;
-				buf += 12;
-				handler = buf_handler[BUF_TYPE_FW_CFG];
-				ctx = buf_handler_ctx[BUF_TYPE_FW_CFG];
-			}
-			if (handler && !handler(ctx, buf, (UINT16)copy_size))
-				retval = count;
-			else
-				retval = -ENOTSUPP;
-		} else if (!strncmp(local, "RM-BUF:", 7)) {
-			file_buf_handler handler = NULL;
-			VOID *ctx = NULL;
-
-			if (!strncmp(&local[7], "DRVCFG", 6)) {
-				handler = buf_handler[BUF_TYPE_DRV_CFG];
-				ctx = buf_handler_ctx[BUF_TYPE_DRV_CFG];
-			} else if (!strncmp(&local[7], "FWCFG", 5)) {
-				handler = buf_handler[BUF_TYPE_FW_CFG];
-				ctx = buf_handler_ctx[BUF_TYPE_FW_CFG];
-			}
-
-			if (handler && !handler(ctx, NULL, 0))
-				retval = count;
-			else
-				retval = -ENOTSUPP;
 		} else if (local[0] == 'S' || local[0] == 'P' || local[0] == 'A') {
 			if (powered == 0) {
 				/* If WIFI is off, turn on WIFI first */
@@ -420,9 +355,23 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 			}
 
 			if ((wlan_mode == WLAN_MODE_STA_P2P && (local[0] == 'S' || local[0] == 'P')) ||
-			    (wlan_mode == WLAN_MODE_AP && (local[0] == 'A'))) {
+			    (wlan_mode == WLAN_MODE_AP && (local[0] == 'A')) ||
+			    (wlan_mode == WLAN_MODE_STA_AP_P2P)) {
 				WIFI_INFO_FUNC("WIFI is already in mode %d!\n", wlan_mode);
 				retval = count;
+				goto done;
+			}
+
+			if (isconcurrent) {
+				p2pmode.u4Enable = 1;
+				p2pmode.u4Mode = 3;
+				if (pf_set_p2p_mode(netdev, p2pmode) != 0) {
+					WIFI_ERR_FUNC("Set wlan mode fail\n");
+				} else {
+					WIFI_INFO_FUNC("Set wlan mode %d --> %d\n", wlan_mode, WLAN_MODE_STA_AP_P2P);
+					wlan_mode = WLAN_MODE_STA_AP_P2P;
+					retval = count;
+				}
 				goto done;
 			}
 
@@ -459,6 +408,12 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 			}
 			dev_put(netdev);
 			netdev = NULL;
+		} else if (local[0] == 'C') {
+			isconcurrent = 1;
+			WIFI_INFO_FUNC("Enable concurrent mode\n");
+		} else if (local[0] == 'N') {
+			isconcurrent = 0;
+			WIFI_INFO_FUNC("Disable concurrent mode\n");
 		}
 	}
 done:
