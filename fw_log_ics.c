@@ -34,8 +34,10 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define ICS_FW_LOG_IOC_MAGIC        (0xfc)
 #define ICS_FW_LOG_IOCTL_ON_OFF     _IOW(ICS_FW_LOG_IOC_MAGIC, 0, int)
+#define ICS_FW_LOG_IOCTL_SET_LEVEL  _IOW(ICS_FW_LOG_IOC_MAGIC, 1, int)
 
 #define ICS_LOG_CMD_ON_OFF        0
+#define ICS_LOG_CMD_SET_LEVEL     1
 
 #define PFX                        "[ICS-FW] "
 #define ICS_FW_LOG_DBG             3
@@ -171,7 +173,7 @@ static ssize_t ics_ring_read(struct ics_ring *iRing, char __user *buf,
 				goto return_fn;
 			left_to_read -= ring_seg.sz;
 			read += ring_seg.sz;
-			ICS_DBG_LIMITED("read:%d left:%d\n", read,
+			ICS_DBG_LIMITED("read:%ld left:%ld\n", read,
 				left_to_read);
 		}
 	} else {
@@ -180,7 +182,7 @@ static ssize_t ics_ring_read(struct ics_ring *iRing, char __user *buf,
 	}
 
 return_fn:
-	ICS_DBG("[Done] read:%d left:%d\n", read, left_to_read);
+	ICS_DBG("[Done] read:%ld left:%ld\n", read, left_to_read);
 	return read;
 }
 
@@ -197,7 +199,7 @@ static ssize_t ics_ring_write(struct ics_ring *iRing, char *buf,
 			memcpy(ring_seg.ring_pt, buf, ring_seg.sz);
 			left_to_write -= ring_seg.sz;
 			written += ring_seg.sz;
-			ICS_DBG_LIMITED("written:%d left:%d\n", written,
+			ICS_DBG_LIMITED("written:%ld left:%ld\n", written,
 				left_to_write);
 		}
 
@@ -206,7 +208,7 @@ static ssize_t ics_ring_write(struct ics_ring *iRing, char *buf,
 		written = -EPERM;
 	}
 
-	ICS_DBG("[Done] written:%d left:%d\n", written,
+	ICS_DBG("[Done] written:%ld left:%ld\n", written,
 		left_to_write);
 	return written;
 }
@@ -293,6 +295,22 @@ static long fw_log_ics_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 	down(&gIcsDev->ioctl_mtx);
 	switch (cmd) {
+	case ICS_FW_LOG_IOCTL_SET_LEVEL:{
+		unsigned int level = (unsigned int) arg;
+
+		ICS_INFO("ICS_FW_LOG_IOCTL_SET_LEVEL start\n");
+
+		if (gIcsDev->pfFwEventFuncCB) {
+			ICS_INFO("ICS_FW_LOG_IOCTL_SET_LEVEL invoke:%d\n",
+				(int)level);
+			gIcsDev->pfFwEventFuncCB(ICS_LOG_CMD_SET_LEVEL, level);
+		} else
+			ICS_ERR(
+				"ICS_FW_LOG_IOCTL_SET_LEVEL invoke failed\n");
+
+		ICS_INFO("ICS_FW_LOG_IOCTL_SET_LEVEL end\n");
+		break;
+	}
 	case ICS_FW_LOG_IOCTL_ON_OFF:{
 		unsigned int log_on_off = (unsigned int) arg;
 
