@@ -183,7 +183,7 @@ static long fw_log_wifi_unlocked_ioctl(struct file *filp, unsigned int cmd, unsi
 	int32_t wait_cnt = 0;
 
 	while (wait_cnt < 2000) {
-		if (pfFwEventFuncCB)
+		if (pfFwEventFuncCB && pfFwGetFwVerCB)
 			break;
 		if (wait_cnt % 20 == 0)
 			WIFI_ERR_FUNC("Wi-Fi driver is not ready for 2s\n");
