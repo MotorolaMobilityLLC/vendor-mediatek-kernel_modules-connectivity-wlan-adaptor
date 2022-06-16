@@ -232,7 +232,11 @@ static long fw_log_wifi_unlocked_ioctl(struct file *filp, unsigned int cmd, unsi
 		schedule_work(&getFwVerQ);
 		flush_work(&getFwVerQ);
 
-		copy_to_user((char *) arg, ver_name, ver_length);
+		if (copy_to_user((char *) arg, ver_name, ver_length)) {
+			WIFI_ERR_FUNC("copy to user failed\n");
+			ret = -EFAULT;
+		}
+
 		WIFI_INFO_FUNC("fw_log_wifi_unlocked_ioctl WIFI_FW_LOG_IOCTL_GET_VERSION end\n");
 		break;
 	}
