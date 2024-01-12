@@ -379,7 +379,7 @@ struct page *wifi_page_pool_alloc_page(void)
 		if (!group) {
 			pr_info("%s: page group don't exist[0x%llx]",
 				__func__, (uint64_t)kaddr);
-			__free_page(page);
+			put_page_pool(pool_ctx.pool, page);
 			page = NULL;
 		}
 	}
