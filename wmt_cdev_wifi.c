@@ -28,6 +28,7 @@
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/string.h>
+#include <linux/version.h>
 
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
 #include "wifi_pwr_on.h"
@@ -833,7 +834,11 @@ static int WIFI_init(void)
 		goto error;
 
 #if CREATE_NODE_DYNAMIC	/* mknod replace */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0))
+	wmtwifi_class = class_create("wmtWifi");
+#else
 	wmtwifi_class = class_create(THIS_MODULE, "wmtWifi");
+#endif
 	if (IS_ERR(wmtwifi_class))
 		goto error;
 	wmtwifi_dev = device_create(wmtwifi_class, NULL, wifi_devno, NULL,
