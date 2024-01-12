@@ -137,6 +137,21 @@ void register_set_p2p_mode_handler(set_p2p_mode handler)
 }
 EXPORT_SYMBOL(register_set_p2p_mode_handler);
 
+static void (*pf_set_wifi_test_mode_fwdl)(const int);
+void register_set_wifi_test_mode_fwdl_handler(void (*handler)(const int))
+{
+	pf_set_wifi_test_mode_fwdl = handler;
+}
+EXPORT_SYMBOL(register_set_wifi_test_mode_fwdl_handler);
+
+typedef uint8_t (*is_wifi_in_test_mode) (struct net_device *netdev);
+static is_wifi_in_test_mode pf_is_wifi_in_test_mode;
+void register_is_wifi_in_test_mode_handler(is_wifi_in_test_mode handler)
+{
+	pf_is_wifi_in_test_mode = handler;
+}
+EXPORT_SYMBOL(register_is_wifi_in_test_mode_handler);
+
 void update_driver_loaded_status(uint8_t loaded)
 {
 	WIFI_INFO_FUNC("update_driver_loaded_status: %d\n", loaded);
@@ -420,6 +435,157 @@ static bool write_value_sanity_check(int8_t *local, size_t count)
 	return true;
 }
 
+static void WIFI_write_off(int32_t *retval, struct net_device *netdev, size_t count)
+{
+	struct PARAM_CUSTOM_P2P_SET_STRUCT p2pmode;
+
+#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+	write_processing = 1;
+#endif
+
+	if (powered == 0) {
+		WIFI_INFO_FUNC("WIFI is already power off!\n");
+		*retval = count;
+		wlan_mode = WLAN_MODE_HALT;
+		/*goto done;*/
+		return;
+	}
+
+	netdev = dev_get_by_name(&init_net, ifname);
+	if (netdev == NULL)
+		WIFI_ERR_FUNC("Fail to get %s net device\n", ifname);
+	else {
+		p2pmode.u4Enable = 0;
+		p2pmode.u4Mode = 0;
+
+		if (pf_set_p2p_mode) {
+			if (pf_set_p2p_mode(netdev, p2pmode) != 0)
+				WIFI_ERR_FUNC("Turn off p2p/ap mode fail");
+			else {
+				WIFI_INFO_FUNC("Turn off p2p/ap mode");
+				wlan_mode = WLAN_MODE_HALT;
+			}
+		}
+		dev_put(netdev);
+		netdev = NULL;
+	}
+
+#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+	if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_OFF) == MTK_WCN_BOOL_FALSE) {
+#else
+	if (mtk_wcn_wmt_func_off(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
+#endif
+		WIFI_ERR_FUNC("WMT turn off WIFI fail!\n");
+	} else {
+		WIFI_INFO_FUNC("WMT turn off WIFI success!\n");
+		*retval = count;
+		wlan_mode = WLAN_MODE_HALT;
+	}
+	powered = 0;
+}
+
+static void WIFI_write_on(int32_t *retval, size_t count)
+{
+#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+	write_processing = 1;
+#endif
+	if (powered == 1) {
+		WIFI_INFO_FUNC("WIFI is already power on!\n");
+		*retval = count;
+		return;
+	}
+#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+	if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_ON) == MTK_WCN_BOOL_FALSE) {
+#else
+	if (mtk_wcn_wmt_func_on(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
+#endif
+		WIFI_ERR_FUNC("WMT turn on WIFI fail!\n");
+	} else {
+		powered = 1;
+		*retval = count;
+		WIFI_INFO_FUNC("WMT turn on WIFI success!\n");
+		wlan_mode = WLAN_MODE_HALT;
+	}
+}
+
+static void WIFI_write_test_mode_on(int32_t *retval, struct net_device *netdev, size_t count)
+{
+	struct PARAM_CUSTOM_P2P_SET_STRUCT p2pmode;
+
+	/* wifi off -> wifi on by test mode */
+#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+	write_processing = 1;
+#endif
+
+	if (pf_set_wifi_test_mode_fwdl == NULL) {
+		WIFI_INFO_FUNC("Error set_wifi_test_mode_fwdl is not register\n");
+		return;
+	}
+
+	if (powered == 1) {
+		/* below is same as wifi write 0, may combine to one function. */
+		netdev = dev_get_by_name(&init_net, ifname);
+		if (netdev == NULL)
+			WIFI_ERR_FUNC("Fail to get %s net device\n", ifname);
+		else {
+			if (pf_is_wifi_in_test_mode &&
+				pf_is_wifi_in_test_mode(netdev) == true) {
+				WIFI_INFO_FUNC("Skip: already in test mode\n");
+				return;
+			}
+			WIFI_INFO_FUNC("do wifi off for test mode on!\n");
+
+			p2pmode.u4Enable = 0;
+			p2pmode.u4Mode = 0;
+
+			if (pf_set_p2p_mode) {
+				if (pf_set_p2p_mode(netdev, p2pmode) != 0)
+					WIFI_ERR_FUNC("Turn off p2p/ap mode fail");
+				else {
+					WIFI_INFO_FUNC("Turn off p2p/ap mode");
+					wlan_mode = WLAN_MODE_HALT;
+				}
+			}
+			dev_put(netdev);
+			netdev = NULL;
+		}
+
+#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+		if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_OFF) == MTK_WCN_BOOL_FALSE) {
+#else
+		if (mtk_wcn_wmt_func_off(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
+#endif
+			WIFI_ERR_FUNC("WMT turn off WIFI fail!\n");
+		} else {
+			WIFI_INFO_FUNC("WMT turn off WIFI success!\n");
+			powered = 0;
+			*retval = count;
+			wlan_mode = WLAN_MODE_HALT;
+		}
+
+		/* wifi write 0 action done */
+	} else
+		WIFI_INFO_FUNC("WIFI is already power off, skip off action.\n");
+
+	WIFI_INFO_FUNC("Test Mode WIFI On\n");
+	pf_set_wifi_test_mode_fwdl(1);
+
+	/* below is same as wifi write 1, may combine to one function. */
+#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+	if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_ON) == MTK_WCN_BOOL_FALSE) {
+#else
+	if (mtk_wcn_wmt_func_on(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
+#endif
+		WIFI_ERR_FUNC("WMT turn on WIFI fail!\n");
+	} else {
+		powered = 1;
+		*retval = count;
+		WIFI_INFO_FUNC("WMT turn on WIFI success!\n");
+		wlan_mode = WLAN_MODE_HALT;
+	}
+	pf_set_wifi_test_mode_fwdl(0);
+}
+
 ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	int32_t retval = -EIO;
@@ -451,68 +617,11 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 			goto done;
 
 		if (local[0] == '0') {
-#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
-			write_processing = 1;
-#endif
-			if (powered == 0) {
-				WIFI_INFO_FUNC("WIFI is already power off!\n");
-				retval = count;
-				wlan_mode = WLAN_MODE_HALT;
-				goto done;
-			}
-
-			netdev = dev_get_by_name(&init_net, ifname);
-			if (netdev == NULL) {
-				WIFI_ERR_FUNC("Fail to get %s net device\n", ifname);
-			} else {
-				p2pmode.u4Enable = 0;
-				p2pmode.u4Mode = 0;
-
-				if (pf_set_p2p_mode) {
-					if (pf_set_p2p_mode(netdev, p2pmode) != 0) {
-						WIFI_ERR_FUNC("Turn off p2p/ap mode fail");
-					} else {
-						WIFI_INFO_FUNC("Turn off p2p/ap mode");
-						wlan_mode = WLAN_MODE_HALT;
-					}
-				}
-				dev_put(netdev);
-				netdev = NULL;
-			}
-
-#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
-			if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_OFF) == MTK_WCN_BOOL_FALSE) {
-#else
-			if (mtk_wcn_wmt_func_off(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
-#endif
-				WIFI_ERR_FUNC("WMT turn off WIFI fail!\n");
-			} else {
-				WIFI_INFO_FUNC("WMT turn off WIFI success!\n");
-				retval = count;
-				wlan_mode = WLAN_MODE_HALT;
-			}
-			powered = 0;
+			WIFI_write_off(&retval, netdev, count);
 		} else if (local[0] == '1') {
-#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
-			write_processing = 1;
-#endif
-			if (powered == 1) {
-				WIFI_INFO_FUNC("WIFI is already power on!\n");
-				retval = count;
-				goto done;
-			}
-#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
-			if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_ON) == MTK_WCN_BOOL_FALSE) {
-#else
-			if (mtk_wcn_wmt_func_on(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
-#endif
-				WIFI_ERR_FUNC("WMT turn on WIFI fail!\n");
-			} else {
-				powered = 1;
-				retval = count;
-				WIFI_INFO_FUNC("WMT turn on WIFI success!\n");
-				wlan_mode = WLAN_MODE_HALT;
-			}
+			WIFI_write_on(&retval, count);
+		} else if (local[0] == '2') {
+			WIFI_write_test_mode_on(&retval, netdev, count);
 		} else if (!strncmp(local, "WR-BUF:", 7)) {
 			file_buf_handler handler = NULL;
 			void *ctx = NULL;
