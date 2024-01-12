@@ -379,13 +379,15 @@ struct page *wifi_page_pool_alloc_page(void)
 		if (!page)
 			goto exit;
 
-		kaddr = page_to_virt(page);
-		group = search_group(addr2key(kaddr));
-		if (!group) {
-			pr_info("%s: page group don't exist[0x%llx]",
-				__func__, (uint64_t)kaddr);
-			put_page_pool(pool_ctx.pool, page);
-			page = NULL;
+		if (pool_ctx.is_dynamic_alloc) {
+			kaddr = page_to_virt(page);
+			group = search_group(addr2key(kaddr));
+			if (!group) {
+				pr_info("%s: page group don't exist[0x%llx]",
+					__func__, (uint64_t)kaddr);
+				__free_page(page);
+				page = NULL;
+			}
 		}
 	}
 
@@ -455,7 +457,7 @@ static bool alloc_page_pool_kernel_mem(void)
 		"wlan_rx_skb_cache",
 		PAGE_SIZE,
 		0,
-		SLAB_CACHE_DMA32,
+		SLAB_CACHE_DMA,
 		0,
 		PAGE_SIZE,
 		NULL);
