@@ -16,7 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/of.h>
 #include <linux/hashtable.h>
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 
 /*******************************************************************************
  *                              C O N S T A N T S
