@@ -16,7 +16,12 @@
 #include <linux/of_address.h>
 #include <linux/of.h>
 #include <linux/hashtable.h>
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
 #include <net/page_pool/helpers.h>
+#else
+#include <net/page_pool.h>
+#endif
 
 /*******************************************************************************
  *                              C O N S T A N T S
