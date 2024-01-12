@@ -243,6 +243,7 @@ enum ENUM_WLAN_DRV_BUF_TYPE_T {
 	BUF_TYPE_NVRAM,
 	BUF_TYPE_DRV_CFG,
 	BUF_TYPE_FW_CFG,
+	BUF_TYPE_XONV,
 	BUF_TYPE_NUM
 };
 
@@ -545,6 +546,26 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 				buf += 12;
 				handler = buf_handler[BUF_TYPE_FW_CFG];
 				ctx = buf_handler_ctx[BUF_TYPE_FW_CFG];
+			} else if (!strncmp(&local[7], "XONV", 4)) {
+				copy_size = count - 11;
+				buf += 11;
+
+				wait_cnt = 0;
+				while (wait_cnt < 2000) {
+					handler = buf_handler[BUF_TYPE_XONV];
+					ctx = buf_handler_ctx[BUF_TYPE_XONV];
+					if (handler)
+						break;
+					if (wait_cnt % 20 == 0)
+						WIFI_ERR_FUNC("Wi-Fi driver is not ready for 2s\n");
+					msleep(100);
+					wait_cnt++;
+				}
+
+				if (!handler)
+					WIFI_ERR_FUNC("Wi-Fi driver is not ready for write XO NVRAM\n");
+				else
+					WIFI_INFO_FUNC("Wi-Fi XO NVRAM handler = %p\n", handler);
 			}
 			if (handler && !handler(ctx, buf, (uint16_t)copy_size))
 				retval = count;
