@@ -107,6 +107,13 @@ static uint32_t driver_loaded;
 static int32_t low_latency_mode;
 static int32_t wifi_standalone_log_mode;
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+enum {
+	WRITE_PROCESSING_DONE,
+	WRITE_PROCESSING_ON,
+	WRITE_PROCESSING_OFF,
+	WRITE_PROCESSING_MAX
+};
+
 static uint8_t  driver_resetting;
 static uint8_t  write_processing;
 static uint8_t  pre_cal_ongoing;
@@ -440,7 +447,7 @@ static void WIFI_write_off(int32_t *retval, struct net_device *netdev, size_t co
 	struct PARAM_CUSTOM_P2P_SET_STRUCT p2pmode;
 
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
-	write_processing = 1;
+	write_processing = WRITE_PROCESSING_OFF;
 #endif
 
 	if (powered == 0) {
@@ -487,7 +494,7 @@ static void WIFI_write_off(int32_t *retval, struct net_device *netdev, size_t co
 static void WIFI_write_on(int32_t *retval, size_t count)
 {
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
-	write_processing = 1;
+	write_processing = WRITE_PROCESSING_ON;
 #endif
 	if (powered == 1) {
 		WIFI_INFO_FUNC("WIFI is already power on!\n");
@@ -514,7 +521,7 @@ static void WIFI_write_test_mode_on(int32_t *retval, struct net_device *netdev, 
 
 	/* wifi off -> wifi on by test mode */
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
-	write_processing = 1;
+	write_processing = WRITE_PROCESSING_ON;
 #endif
 
 	if (pf_set_wifi_test_mode_fwdl == NULL) {
@@ -916,7 +923,7 @@ done:
 	if (netdev != NULL)
 		dev_put(netdev);
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
-	write_processing = 0;
+	write_processing = WRITE_PROCESSING_DONE;
 #endif
 	mutex_unlock(&wr_mtx);
 	return retval;
