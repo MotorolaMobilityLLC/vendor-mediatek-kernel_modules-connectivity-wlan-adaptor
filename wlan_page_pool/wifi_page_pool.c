@@ -153,6 +153,7 @@ static void put_page_pool(struct page_pool *pool, struct page *page)
 	init_page_count(page);
 	page->pp = pool;
 	page->pp_magic = PP_SIGNATURE;
+	page_pool_fragment_page(page, 1);
 	page_pool_recycle_direct(pool, page);
 }
 
