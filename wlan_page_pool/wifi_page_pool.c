@@ -28,7 +28,7 @@
  *******************************************************************************
  */
 #define PAGE_POOL_MAX_SIZE		(32768)
-#define PAGE_POOL_ALLOC_PAGE_CNT	(256)		/* 1MB */
+#define PAGE_POOL_ALLOC_PAGE_CNT	(SZ_1M/PAGE_SIZE)	/* 1MB */
 #define PAGE_POOL_GROUP_SIZE	(PAGE_POOL_MAX_SIZE / PAGE_POOL_ALLOC_PAGE_CNT)
 
 /*******************************************************************************
