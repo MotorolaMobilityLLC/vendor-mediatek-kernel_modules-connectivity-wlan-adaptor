@@ -242,7 +242,7 @@ static struct pp_mem_group *alloc_mem_group(uint32_t page_cnt)
 	}
 	group->in_used = true;
 	group->kaddr = kaddr;
-	group->size = SZ_4K * page_cnt;
+	group->size = PAGE_SIZE * page_cnt;
 
 	for (i = 0; i < page_cnt; i++) {
 		page = virt_to_page(kaddr);
@@ -251,9 +251,9 @@ static struct pp_mem_group *alloc_mem_group(uint32_t page_cnt)
 		} else {
 			pr_info("%s: page is NULL", __func__);
 			/* Decrement the size to account for the missing page */
-			group->size -= SZ_4K;
+			group->size -= PAGE_SIZE;
 		}
-		kaddr += SZ_4K;
+		kaddr += PAGE_SIZE;
 	}
 
 	return group;
@@ -299,7 +299,7 @@ exit:
 static void free_mem_group_pages(struct pp_mem_group *group)
 {
 	struct page *pages;
-	uint32_t page_cnt = group->size / SZ_4K;
+	uint32_t page_cnt = group->size / PAGE_SIZE;
 
 	if (!pool_ctx.dev)
 		return;
@@ -327,7 +327,7 @@ static struct pp_mem_group *free_page_to_mem_group(struct page *page)
 		return NULL;
 	}
 
-	page_cnt = group->size / SZ_4K;
+	page_cnt = group->size / PAGE_SIZE;
 	pp_pages = (struct pp_pages *)kaddr;
 	list_add_tail(&pp_pages->list, &group->list);
 	group->count++;
@@ -434,7 +434,7 @@ static bool alloc_page_pool_cma_mem(void)
 		if (!group)
 			break;
 
-		alloc_cnt += group->size / SZ_4K;
+		alloc_cnt += group->size / PAGE_SIZE;
 	}
 
 	if (req_cnt > alloc_cnt)
