@@ -277,13 +277,13 @@ static uint32_t alloc_page_from_mem_group(uint32_t req_cnt)
 				goto exit;
 
 			list_node = group->list.next;
+			list_del(list_node);
+			group->count--;
 			page = virt_to_page((void *)list_node);
 			if (page) {
 				put_page_pool(pool_ctx.pool, page);
 				cnt++;
 			}
-			list_del(list_node);
-			group->count--;
 		}
 	}
 
