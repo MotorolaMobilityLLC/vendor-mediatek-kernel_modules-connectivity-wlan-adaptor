@@ -157,6 +157,12 @@ static void put_page_pool(struct page_pool *pool, struct page *page)
 	page_pool_recycle_direct(pool, page);
 }
 
+static void clear_page_pp_info(struct page *page)
+{
+	page->pp_magic = 0;
+	page->pp = NULL;
+}
+
 static void init_mem_group(struct pp_mem_group *group)
 {
 	INIT_LIST_HEAD(&group->list);
@@ -327,6 +333,7 @@ static struct pp_mem_group *free_page_to_mem_group(struct page *page)
 		return NULL;
 	}
 
+	clear_page_pp_info(page);
 	page_cnt = group->size / PAGE_SIZE;
 	pp_pages = (struct pp_pages *)kaddr;
 	list_add_tail(&pp_pages->list, &group->list);
