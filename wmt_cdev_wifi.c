@@ -76,6 +76,8 @@ uint32_t gDbgLevel = WIFI_LOG_DBG;
 
 #define VERSION "2.0"
 
+#define ISPRINT(a)   (((a) >= 32) && ((a) <= 126))
+
 static int32_t WIFI_devs = 1;
 static int32_t WIFI_major = WIFI_DEV_MAJOR;
 static dev_t wifi_devno;
@@ -593,6 +595,35 @@ static void WIFI_write_test_mode_on(int32_t *retval, struct net_device *netdev, 
 	pf_set_wifi_test_mode_fwdl(0);
 }
 
+static int32_t wifi_conv_to_printable_str(uint32_t size, int8_t *src, int8_t *des)
+{
+	int32_t i = 0;
+	uint32_t write_byte = 0;
+
+	if (size == 0) {
+		/* sanity check */
+		return 0;
+	}
+
+	for (i = 0; i < size; i++) {
+
+		if ((i == (size - 1)) && src[i] == '\0') {
+			/* null terminate */
+			break;
+		}
+
+		if (ISPRINT(src[i])) {
+			/* Print directly */
+			write_byte += sprintf((char *)(des + write_byte), "%c", src[i]);
+		} else {
+			/* Transfer to HEX */
+			write_byte += sprintf((char *)(des + write_byte), " %02X", (uint8_t)src[i]);
+		}
+	}
+
+	return write_byte;
+}
+
 ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	int32_t retval = -EIO;
@@ -601,6 +632,8 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 	struct PARAM_CUSTOM_P2P_SET_STRUCT p2pmode;
 	int32_t wait_cnt = 0;
 	uint32_t copy_size = 0;
+	int8_t print_str[(sizeof(local) - 1) * 3 + 1] = { 0 };
+	uint32_t total_len = 0;
 
 	mutex_lock(&wr_mtx);
 	if (count <= 0) {
@@ -617,8 +650,12 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 		(sizeof(local) - 1) : (uint32_t) count;
 	if (copy_from_user(local, buf, copy_size) == 0) {
 		local[copy_size] = '\0';
+
+		total_len = wifi_conv_to_printable_str(copy_size, local, print_str);
+		print_str[total_len] = '\0';
+
 		WIFI_INFO_FUNC("WIFI_write %s, length %zu, copy_size %u\n",
-			local, count, copy_size);
+			print_str, count, copy_size);
 
 		if (!write_value_sanity_check(local, count))
 			goto done;
