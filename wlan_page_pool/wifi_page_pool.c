@@ -387,6 +387,14 @@ struct page *wifi_page_pool_alloc_page(void)
 		if (!page)
 			goto exit;
 
+		if (page_to_phys(page) >= 0x100000000) {
+			__free_page(page);
+			page = NULL;
+			pr_info_ratelimited("%s: page addr > 32bits[0x%llx]",
+					__func__, (uint64_t)page_to_phys(page));
+			goto exit;
+		}
+
 		if (pool_ctx.is_dynamic_alloc) {
 			kaddr = page_to_virt(page);
 			group = search_group(addr2key(kaddr));
