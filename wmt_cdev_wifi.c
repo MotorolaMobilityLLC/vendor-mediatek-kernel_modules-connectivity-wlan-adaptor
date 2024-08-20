@@ -119,6 +119,7 @@ enum {
 static uint8_t  driver_resetting;
 static uint8_t  write_processing;
 static uint8_t  pre_cal_ongoing;
+static uint8_t  whole_chip_rst_ongoing;
 #endif
 /*******************************************************************
  */
@@ -244,6 +245,18 @@ uint8_t get_pre_cal_status(void)
 	return pre_cal_ongoing;
 }
 EXPORT_SYMBOL(get_pre_cal_status);
+void update_whole_chip_rst_status(uint8_t fgIsWholeChipRst)
+{
+	WIFI_INFO_FUNC("update_whole_chip_rst_status: %d\n", fgIsWholeChipRst);
+	whole_chip_rst_ongoing = fgIsWholeChipRst;
+}
+EXPORT_SYMBOL(update_whole_chip_rst_status);
+uint8_t get_whole_chip_rst_status(void)
+{
+	WIFI_INFO_FUNC("whole_chip_rst status: %d\n", whole_chip_rst_ongoing);
+	return whole_chip_rst_ongoing;
+}
+EXPORT_SYMBOL(get_whole_chip_rst_status);
 #endif
 
 int32_t update_wr_mtx_down_up_status(uint8_t ucDownUp, uint8_t ucIsBlocking)
@@ -641,7 +654,8 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 		goto done;
 	}
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
-	if (driver_resetting == 1) {
+	if (driver_resetting == 1 ||
+	    whole_chip_rst_ongoing) {
 		WIFI_ERR_FUNC("Wi-Fi is resetting\n");
 		goto done;
 	}
