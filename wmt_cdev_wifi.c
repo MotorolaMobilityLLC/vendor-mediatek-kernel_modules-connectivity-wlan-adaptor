@@ -111,6 +111,7 @@ static int32_t wifi_standalone_log_mode;
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
 enum {
 	WRITE_PROCESSING_DONE,
+	WRITE_PROCESSING_START,
 	WRITE_PROCESSING_ON,
 	WRITE_PROCESSING_OFF,
 	WRITE_PROCESSING_MAX
@@ -654,6 +655,7 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 		goto done;
 	}
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+	write_processing = WRITE_PROCESSING_START;
 	if (driver_resetting == 1 ||
 	    whole_chip_rst_ongoing) {
 		WIFI_ERR_FUNC("Wi-Fi is resetting\n");
@@ -764,6 +766,7 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 			if (powered == 0) {
 				/* If WIFI is off, turn on WIFI first */
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+				write_processing = WRITE_PROCESSING_ON;
 				if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_ON) == MTK_WCN_BOOL_FALSE) {
 #else
 				if (mtk_wcn_wmt_func_on(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
