@@ -49,7 +49,7 @@ extern bool g_fgIsWiFiOn;
 
 #define MSEC_TO_JIFFIES(_msec)      msecs_to_jiffies(_msec)
 
-#define WIFI_PWR_ON_TIMEOUT 10000
+#define WIFI_PWR_ON_TIMEOUT 12000
 
 #define ADAPTOR_FLAG_HALT    BIT(0)
 #define ADAPTOR_FLAG_ON      BIT(1)
