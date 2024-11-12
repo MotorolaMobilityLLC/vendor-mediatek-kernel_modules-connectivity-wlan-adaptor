@@ -72,6 +72,6 @@ endif
 # Wi-Fi character device driver
 $(MODULE_NAME)-objs += wmt_cdev_wifi.o
 
-ifneq ($(CONNAC_VER), 1_0)
+ifneq ($(filter-out gen3 1_0,$(CONNAC_VER)),)
     $(MODULE_NAME)-objs += wifi_pwr_on.o
 endif
