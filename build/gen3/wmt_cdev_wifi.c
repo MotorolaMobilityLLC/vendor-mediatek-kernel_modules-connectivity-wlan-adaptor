@@ -38,7 +38,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define WIFI_LOG_WARN                 1
 #define WIFI_LOG_ERR                  0
 
-uint32_t gDbgLevel = WIFI_LOG_DBG;
+uint32_t gDbgLevel = WIFI_LOG_INFO;
 
 #define WIFI_DBG_FUNC(fmt, arg...)	\
 	do { \
@@ -62,8 +62,7 @@ uint32_t gDbgLevel = WIFI_LOG_DBG;
 	} while (0)
 #define WIFI_ERR_FUNC(fmt, arg...)	\
 	do { \
-		if (gDbgLevel >= WIFI_LOG_ERR) \
-			pr_info(PFX "%s[E]: " fmt, __func__, ##arg); \
+		pr_info(PFX "%s[E]: " fmt, __func__, ##arg); \
 	} while (0)
 
 #define VERSION "2.0"
