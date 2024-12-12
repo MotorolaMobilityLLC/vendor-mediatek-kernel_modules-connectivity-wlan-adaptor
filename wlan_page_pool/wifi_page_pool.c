@@ -81,7 +81,7 @@ struct wifi_page_pool_context {
  */
 static void update_page_pool_page_num(void);
 static int wifi_page_pool_probe(struct platform_device *pdev);
-static int wifi_page_pool_remove(struct platform_device *pdev);
+static void wifi_page_pool_remove(struct platform_device *pdev);
 static bool is_page_pool_empty(struct page_pool *pool);
 
 /*******************************************************************************
@@ -743,11 +743,10 @@ exit:
 	return 0;
 }
 
-static int wifi_page_pool_remove(struct platform_device *pdev)
+static void wifi_page_pool_remove(struct platform_device *pdev)
 {
 	release_page_pool(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static int __init wifi_page_pool_init(void)
