@@ -234,6 +234,16 @@ int32_t get_wifi_process_status(void)
 	return write_processing;
 }
 EXPORT_SYMBOL(get_wifi_process_status);
+u_int8_t is_wifi_process_idle(void)
+{
+	return get_wifi_process_status() == WRITE_PROCESSING_DONE;
+}
+EXPORT_SYMBOL(is_wifi_process_idle);
+u_int8_t is_wifi_process_off_ongoing(void)
+{
+	return get_wifi_process_status() == WRITE_PROCESSING_OFF;
+}
+EXPORT_SYMBOL(is_wifi_process_off_ongoing);
 void update_pre_cal_status(uint8_t fgIsPreCal)
 {
 	WIFI_INFO_FUNC("update_pre_cal_status: %d\n", fgIsPreCal);
