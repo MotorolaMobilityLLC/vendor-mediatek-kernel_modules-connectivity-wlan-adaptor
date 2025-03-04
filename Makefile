@@ -9,7 +9,6 @@ ifdef WLAN_BUILD_COMMON
 else
 
 ifneq ($(wildcard $(abspath $(O)/../vendor/mediatek/kernel_modules/connectivity/common/Module.symvers)) ,)
-	$(MAKE) -C $(KERNEL_SRC) M=$(M)/build/gen3 modules $(KBUILD_OPTIONS) KBUILD_EXTRA_SYMBOLS="$(extra_symbols)" CONNAC_VER=gen3 MODULE_NAME=wmt_chrdev_wifi_gen3
 	$(MAKE) -C $(KERNEL_SRC) M=$(M)/build/connac1x modules $(KBUILD_OPTIONS) KBUILD_EXTRA_SYMBOLS="$(extra_symbols)" CONNAC_VER=1_0 MODULE_NAME=wmt_chrdev_wifi
 endif
 
@@ -26,7 +25,6 @@ ifdef WLAN_BUILD_COMMON
 else
 
 ifneq ($(wildcard $(abspath $(O)/../vendor/mediatek/kernel_modules/connectivity/common/Module.symvers)) ,)
-	$(MAKE) M=$(M)/build/gen3 -C $(KERNEL_SRC) modules_install
 	$(MAKE) M=$(M)/build/connac1x -C $(KERNEL_SRC) modules_install
 endif
 
@@ -43,7 +41,6 @@ ifdef WLAN_BUILD_COMMON
 else
 
 ifneq ($(wildcard $(abspath $(O)/../vendor/mediatek/kernel_modules/connectivity/common/Module.symvers)) ,)
-	$(MAKE) -C $(KERNEL_SRC) M=$(M)/build/gen3 clean
 	$(MAKE) -C $(KERNEL_SRC) M=$(M)/build/connac1x clean
 endif
 
