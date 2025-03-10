@@ -64,12 +64,12 @@ ccflags-y += -D CREATE_NODE_DYNAMIC=1
 ifeq ($(CONFIG_WLAN_DRV_BUILD_IN),y)
     $(warning $(MODULE_NAME) build-in boot.img)
     ifeq ($(CONNAC_VER), 1_0)
-        obj-y += $(MODULE_NAME).o
+#        obj-y += $(MODULE_NAME).o
     endif
 else
     $(warning $(MODULE_NAME) is kernel module)
     ifeq ($(CONNAC_VER), 1_0)
-        obj-m += $(MODULE_NAME).o
+#        obj-m += $(MODULE_NAME).o
     endif
 endif
 
