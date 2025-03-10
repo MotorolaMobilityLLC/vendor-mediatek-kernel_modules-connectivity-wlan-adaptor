@@ -623,6 +623,7 @@ static int32_t wifi_conv_to_printable_str(uint32_t size, int8_t *src, int8_t *de
 {
 	int32_t i = 0;
 	uint32_t write_byte = 0;
+	int32_t ret = 0;
 
 	if (size == 0) {
 		/* sanity check */
@@ -636,13 +637,26 @@ static int32_t wifi_conv_to_printable_str(uint32_t size, int8_t *src, int8_t *de
 			break;
 		}
 
+		if (write_byte >= size) {
+			/* Buffer overflow protection */
+			break;
+		}
+
 		if (ISPRINT(src[i])) {
 			/* Print directly */
-			write_byte += sprintf((char *)(des + write_byte), "%c", src[i]);
+			ret = snprintf((char *)(des + write_byte),
+					size - write_byte, "%c", src[i]);
 		} else {
 			/* Transfer to HEX */
-			write_byte += sprintf((char *)(des + write_byte), " %02X", (uint8_t)src[i]);
+			ret = snprintf((char *)(des + write_byte),
+					size - write_byte, " %02X", (uint8_t)src[i]);
 		}
+
+		if (ret < 0) {
+			/* check return value */
+			break;
+		}
+		write_byte += ret;
 	}
 
 	return write_byte;
