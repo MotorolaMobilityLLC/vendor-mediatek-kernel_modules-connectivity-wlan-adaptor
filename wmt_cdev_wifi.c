@@ -373,15 +373,16 @@ int32_t wifi_reset_end(enum ENUM_RESET_STATUS status)
 	} else if (status == RESET_SUCCESS) {
 		WIFI_WARN_FUNC("WIFI state recovering...\n");
 
+#if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
+		/*
+		 * driver should already off when reset start
+		 */
+		g_fgIsWiFiOn = MTK_WCN_BOOL_FALSE;
+#endif
+
 		if (powered == 1) {
 			/* WIFI is on before whole chip reset, reopen it now */
 #if !IS_ENABLED(CFG_SUPPORT_CONNAC1X)
-			/*
-			 * mtk_wland_thread_main will check this flag for current state.
-			 * if this flag is TRUE, mtk_wland_thread_main will not do power on again.
-			 * Set this flag to FALSE to finish the reset procedure
-			 */
-			g_fgIsWiFiOn = MTK_WCN_BOOL_FALSE;
 			if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_ON) == MTK_WCN_BOOL_FALSE) {
 #else
 			if (mtk_wcn_wmt_func_on(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
@@ -436,6 +437,7 @@ done:
 				dev_put(netdev);
 		} else {
 			/* WIFI is off before whole chip reset, do nothing */
+			WIFI_WARN_FUNC("WIFI is already off.\n");
 			ret = 0;
 		}
 		if (mutex_is_locked(&wr_mtx))
