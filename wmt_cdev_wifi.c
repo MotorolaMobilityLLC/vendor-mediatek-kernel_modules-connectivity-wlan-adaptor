@@ -835,7 +835,7 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 				p2pmode.u4Mode = 3;
 				if (pf_set_p2p_mode(netdev, p2pmode) != 0) {
 					WIFI_ERR_FUNC("Set wlan mode fail\n");
-					/* Goto Non-concurrent mode */
+					goto done;
 				} else {
 					WIFI_INFO_FUNC("Set wlan mode %d --> %d\n", wlan_mode, WLAN_MODE_STA_AP_P2P);
 					wlan_mode = WLAN_MODE_STA_AP_P2P;
